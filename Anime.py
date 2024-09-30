@@ -137,7 +137,7 @@ class Anime:
 
     def __get_src(self):
         if self._settings['use_mobile_api']:
-            self._src = self.__request_json(f'https://api.gamer.com.tw/mobile_app/anime/v2/video.php?sn={self._sn}', no_cookies=True)
+            self._src = self.__request_json(f'https://api.gamer.com.tw/anime/v1/video.php?videoSn={self._sn}', no_cookies=True)
         else:
             req = f'https://ani.gamer.com.tw/animeVideo.php?sn={self._sn}'
             f = self.__request(req, no_cookies=True, use_pyhttpx=True)
@@ -200,8 +200,8 @@ class Anime:
 
     def __get_episode_list(self):
         if self._settings['use_mobile_api']:
-            for _type in self._src['data']['anime']['volumes']:
-                for _sn in self._src['data']['anime']['volumes'][_type]:
+            for _type in self._src['data']['anime']['episodes']:
+                for _sn in self._src['data']['anime']['episodes'][_type]:
                     if _type == '0': # 本篇
                         self._episode_list[str(_sn['volume'])] = int(_sn["video_sn"])
                     elif _type == '1': # 電影
@@ -210,8 +210,13 @@ class Anime:
                         self._episode_list[f'特別篇{_sn["volume"]}'] = int(_sn["video_sn"])
                     elif _type == '3': # 中文配音
                         self._episode_list[f'中文配音{_sn["volume"]}'] = int(_sn["video_sn"])
-                    else: # 中文電影
-                        self._episode_list['中文電影'] = int(_sn["video_sn"])
+                    elif _type == '4': # 中文電影
+                        self._episode_list[f'中文電影'] = int(_sn["video_sn"])
+                    elif _type == '5': # 中文特別篇
+                        self._episode_list[f'中文特別篇{_sn["volume"]}'] = int(_sn["video_sn"])
+                    else:
+                        self._episode_list[f'類型{_type}-{_sn["volume"]}'] = int(_sn["video_sn"])
+                        continue
         else:
             try:
                 a = self._src.find('section', 'season').find_all('a')
@@ -381,13 +386,16 @@ class Anime:
     def __get_m3u8_dict(self):
         # m3u8获取模块参考自 https://github.com/c0re100/BahamutAnimeDownloader
         def get_device_id():
-            req = 'https://ani.gamer.com.tw/ajax/getdeviceid.php'
+            if self._settings['use_mobile_api']:
+                req = 'https://api.gamer.com.tw/mobile_app/anime/v1/deviceid.php'
+            else:
+                req = 'https://ani.gamer.com.tw/ajax/getdeviceid.php'
             self._device_id = self.__request_json(req)['deviceid']
             return self._device_id
 
         def get_playlist():
             if self._settings['use_mobile_api']:
-                req = f'https://api.gamer.com.tw/mobile_app/anime/v2/m3u8.php?sn={str(self._sn)}&device={self._device_id}'
+                req = f'https://api.gamer.com.tw/mobile_app/anime/v3/m3u8.php?sn={str(self._sn)}&device={self._device_id}'
             else:
                 req = 'https://ani.gamer.com.tw/ajax/m3u8.php?sn=' + str(self._sn) + '&device=' + self._device_id
             self._playlist = self.__request_json(req)
@@ -402,7 +410,7 @@ class Anime:
 
         def gain_access():
             if self._settings['use_mobile_api']:
-                req = f'https://ani.gamer.com.tw/ajax/token.php?adID=0&sn={str(self._sn)}&device={self._device_id}'
+                req = f'https://api.gamer.com.tw/mobile_app/anime/v4/token.php?sn={str(self._sn)}&device={self._device_id}&disableDanmu=true'
             else:
                 req = 'https://ani.gamer.com.tw/ajax/token.php?adID=0&sn=' + str(
                     self._sn) + "&device=" + self._device_id + "&hash=" + random_string(12)
